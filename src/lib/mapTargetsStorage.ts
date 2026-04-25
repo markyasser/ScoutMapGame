@@ -30,6 +30,38 @@ function clamp(n: number): number {
 }
 
 /**
+ * 4 waypoints: accept a real array, or a plain object (from an old bug where `{...tuple}` was used).
+ * The latter is stored in Redis/JSON as {"0":{x,y}, "1":...} instead of an array.
+ */
+function mergePointsIntoBase(
+  baseRow: [MapPoint, MapPoint, MapPoint, MapPoint],
+  teamData: unknown
+): [MapPoint, MapPoint, MapPoint, MapPoint] {
+  const next: [MapPoint, MapPoint, MapPoint, MapPoint] = [...baseRow]
+  if (Array.isArray(teamData) && teamData.length === 4) {
+    for (let i = 0; i < 4; i++) {
+      if (validPt(teamData[i])) {
+        const pt = teamData[i] as MapPoint
+        next[i] = { x: clamp(pt.x), y: clamp(pt.y) }
+      }
+    }
+    return next
+  }
+  if (teamData && typeof teamData === 'object' && !Array.isArray(teamData)) {
+    const o = teamData as Record<string, unknown>
+    for (let i = 0; i < 4; i++) {
+      const v = o[i] ?? o[String(i) as '0' | '1' | '2' | '3']
+      if (validPt(v)) {
+        const pt = v as MapPoint
+        next[i] = { x: clamp(pt.x), y: clamp(pt.y) }
+      }
+    }
+    return next
+  }
+  return next
+}
+
+/**
  * Coerce any snapshot or stored blob into a valid `TeamTargets` (4 points per team).
  * Invalid teams fall back to code defaults; prevents `.map` crashes when a team is an object, string, etc.
  */
@@ -37,19 +69,8 @@ export function normalizeMapTargets(input: unknown): TeamTargets {
   const base = deepCloneCodeDefaults()
   if (!input || typeof input !== 'object') return base
   for (const t of TEAMS) {
-    const teamArr = (input as Record<string, unknown>)[t]
-    if (!Array.isArray(teamArr) || teamArr.length !== 4) continue
-    const next: [MapPoint, MapPoint, MapPoint, MapPoint] = [...base[t]]
-    for (let i = 0; i < 4; i++) {
-      if (validPt(teamArr[i])) {
-        const pt = teamArr[i] as MapPoint
-        next[i] = {
-          x: clamp(pt.x),
-          y: clamp(pt.y),
-        }
-      }
-    }
-    base[t] = next
+    const teamData = (input as Record<string, unknown>)[t]
+    base[t] = mergePointsIntoBase(base[t], teamData)
   }
   return base
 }

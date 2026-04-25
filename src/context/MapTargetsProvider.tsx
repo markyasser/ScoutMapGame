@@ -32,9 +32,11 @@ export function MapTargetsProvider({ children }: { children: ReactNode }) {
   const setOneWaypoint = useCallback(
     (team: TeamId, index: 0 | 1 | 2 | 3, p: MapPoint) => {
       setTargets((prev) => {
-        const o = { ...prev[team] } as [MapPoint, MapPoint, MapPoint, MapPoint]
-        o[index] = { x: p.x, y: p.y }
-        return { ...prev, [team]: o }
+        // Must use a real array; `{ ...tuple }` turns it into a plain object and JSON.stringify
+        // stores team1 as {"0":...} instead of [...], so Redis + normalize would drop edits.
+        const row = [...prev[team]] as [MapPoint, MapPoint, MapPoint, MapPoint]
+        row[index] = { x: p.x, y: p.y }
+        return { ...prev, [team]: row }
       })
     },
     []
