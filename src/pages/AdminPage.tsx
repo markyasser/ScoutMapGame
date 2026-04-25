@@ -142,7 +142,7 @@ export function AdminPage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 className="font-mono text-xl text-stone-100">Organizer console</h1>
-              <p className="text-sm text-stone-500">Map and targets at the top; names and game settings follow.</p>
+              <p className="text-sm text-stone-500">Map first, then accuracy and game settings; team names at the bottom.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {apiActive ? (
@@ -400,31 +400,6 @@ export function AdminPage() {
           </details>
         </section>
 
-        <section className="space-y-3 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
-          <h2 className="font-mono text-sm text-stone-200">Team names</h2>
-          <p className="text-xs text-stone-500">
-            Shown on the home team picker and in the header while playing. Use{' '}
-            <span className="text-stone-400">Save to players</span> to sync.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {TEAMS.map((t) => (
-              <div key={t} className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono text-stone-500" htmlFor={`admin-team-name-${t}`}>
-                  {t}
-                </label>
-                <input
-                  id={`admin-team-name-${t}`}
-                  type="text"
-                  maxLength={80}
-                  className="rounded border border-slate-600/50 bg-slate-950/80 px-3 py-2 text-stone-100"
-                  value={teamLabels[t]}
-                  onChange={(e) => setTeamLabel(t, e.target.value)}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-
         <section className="space-y-6 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
           <h2 className="font-mono text-sm text-stone-200">Accuracy &amp; game configuration</h2>
           <div className="grid gap-6 lg:grid-cols-2">
@@ -572,6 +547,31 @@ export function AdminPage() {
                 Reset all teams’ progress
               </button>
             </div>
+          </div>
+        </section>
+
+        <section className="space-y-3 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
+          <h2 className="font-mono text-sm text-stone-200">Team names</h2>
+          <p className="text-xs text-stone-500">
+            Shown on the home team picker and in the header while playing. Use{' '}
+            <span className="text-stone-400">Save to players</span> to sync.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {TEAMS.map((t) => (
+              <div key={t} className="flex flex-col gap-1.5">
+                <label className="text-xs font-mono text-stone-500" htmlFor={`admin-team-name-${t}`}>
+                  {t}
+                </label>
+                <input
+                  id={`admin-team-name-${t}`}
+                  type="text"
+                  maxLength={80}
+                  className="rounded border border-slate-600/50 bg-slate-950/80 px-3 py-2 text-stone-100"
+                  value={teamLabels[t]}
+                  onChange={(e) => setTeamLabel(t, e.target.value)}
+                />
+              </div>
+            ))}
           </div>
         </section>
       </div>

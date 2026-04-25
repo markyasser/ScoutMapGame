@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { isTeamId } from '../config/mapConfig'
 import { useTeamLabels } from '../hooks/useTeamLabels'
 import { useMapTargets } from '../hooks/useMapTargetsContext'
@@ -15,7 +15,13 @@ function TeamSelect() {
   return (
     <div className="w-full">
       <div className="mx-auto max-w-md px-5 pb-16 pt-16 sm:px-8 sm:pt-20">
-        <header className="mb-10 border-b border-slate-700/50 pb-8 text-center">
+        <div className="mb-10 border-b border-slate-700/50 pb-8">
+          <div className="mb-4 flex items-center justify-end sm:mb-2">
+            <Link to="/" className="text-sm text-teal-400/85 hover:text-teal-300 hover:underline">
+              Home
+            </Link>
+          </div>
+          <header className="text-center">
           <p className="mb-2 font-mono text-xs font-medium uppercase tracking-[0.2em] text-teal-500/85">
             ScoutMap
           </p>
@@ -29,6 +35,7 @@ function TeamSelect() {
             </code>
           </p>
         </header>
+        </div>
 
         <ul className="space-y-3">
           {(['team1', 'team2', 'team3', 'team4'] as const).map((t) => (
@@ -150,20 +157,30 @@ export function TeamGamePage() {
     <div className="w-full">
       <div className="mx-auto max-w-4xl px-3 pb-8 pt-6">
         <header className="mb-6 border-b border-slate-700/50 pb-4">
-          <h1 className="font-mono text-xl font-semibold text-stone-100">Team: {name}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-stone-400">
-            <span>
-              Target:{' '}
-              <span className="text-teal-300/90">{won ? '4' : Math.min(4, idx + 1)} of 4</span>
-            </span>
-            {!won && point && (
-              <span>
-                Guesses left:{' '}
-                <span className="font-mono text-stone-200">
-                  {Math.max(0, point.maxGuesses - point.attempts)}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="font-mono text-xl font-semibold text-stone-100">Team: {name}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-stone-400">
+                <span>
+                  Target:{' '}
+                  <span className="text-teal-300/90">{won ? '4' : Math.min(4, idx + 1)} of 4</span>
                 </span>
-              </span>
-            )}
+                {!won && point && (
+                  <span>
+                    Guesses left:{' '}
+                    <span className="font-mono text-stone-200">
+                      {Math.max(0, point.maxGuesses - point.attempts)}
+                    </span>
+                  </span>
+                )}
+              </div>
+            </div>
+            <Link
+              to="/"
+              className="shrink-0 text-sm text-teal-400/85 hover:text-teal-300 hover:underline"
+            >
+              Home
+            </Link>
           </div>
         </header>
 
