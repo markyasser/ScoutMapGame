@@ -4,8 +4,13 @@ export type SaveToRemoteError = 'no_api' | 'network' | 'http' | 'busy'
 
 export type SaveToRemoteResult = { ok: true } | { ok: false; error: SaveToRemoteError }
 
+export type SaveToRemoteOptions = {
+  /** Organizer only: server marks snapshot so all players replace local state with this payload. */
+  adminOverride?: boolean
+}
+
 type Value = {
-  saveToRemote: () => Promise<SaveToRemoteResult>
+  saveToRemote: (options?: SaveToRemoteOptions) => Promise<SaveToRemoteResult>
 }
 
 const RemoteSyncActionsContext = createContext<Value | null>(null)

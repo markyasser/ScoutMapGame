@@ -123,25 +123,31 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     }
   }, [apiActive, currentDataKey, doPutSnapshot])
 
-  const saveToRemote = useCallback(async () => {
-    if (!apiActive) return { ok: false as const, error: 'no_api' as const }
-    if (applyingRemote.current) return { ok: false as const, error: 'busy' as const }
-    const key = currentDataKey()
-    const snap: AppSnapshotV1 = {
-      v: 1,
-      updatedAt: Date.now(),
-      game: stateRef.current,
-      targets: targetsRef.current,
-      tolerancePx: toleranceRef.current,
-      defaultMaxGuesses: defaultRef.current,
-    }
-    try {
-      const ok = await doPutSnapshot(snap, key)
-      return ok ? { ok: true as const } : { ok: false as const, error: 'http' as const }
-    } catch {
-      return { ok: false as const, error: 'network' as const }
-    }
-  }, [apiActive, currentDataKey, doPutSnapshot])
+  const saveToRemote = useCallback(
+    async (options?: { adminOverride?: boolean }) => {
+      if (!apiActive) return { ok: false as const, error: 'no_api' as const }
+      if (applyingRemote.current) return { ok: false as const, error: 'busy' as const }
+      const key = currentDataKey()
+      const snap: AppSnapshotV1 = {
+        v: 1,
+        updatedAt: Date.now(),
+        game: stateRef.current,
+        targets: targetsRef.current,
+        tolerancePx: toleranceRef.current,
+        defaultMaxGuesses: defaultRef.current,
+      }
+      if (options?.adminOverride) {
+        snap.adminOverride = true
+      }
+      try {
+        const ok = await doPutSnapshot(snap, key)
+        return ok ? { ok: true as const } : { ok: false as const, error: 'http' as const }
+      } catch {
+        return { ok: false as const, error: 'network' as const }
+      }
+    },
+    [apiActive, currentDataKey, doPutSnapshot]
+  )
 
   const saveContextValue = useMemo(() => ({ saveToRemote }), [saveToRemote])
 
@@ -181,6 +187,11 @@ export function RemoteSync({ children }: RemoteSyncProps) {
           const incomingKey = snapshotDataKey(j)
           if (incomingKey === localKey) {
             lastRemoteAt.current = j.updatedAt
+            return
+          }
+
+          if (j.adminOverride === true) {
+            applyRemote(j)
             return
           }
 

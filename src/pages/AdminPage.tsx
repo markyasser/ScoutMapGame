@@ -152,10 +152,12 @@ export function AdminPage() {
                   if (!apiActive) return
                   setSaving(true)
                   setSaveHint(null)
-                  const r = await saveToRemote()
+                  const r = await saveToRemote({ adminOverride: true })
                   setSaving(false)
                   if (r.ok) {
-                    setSaveHint('Saved — other devices will pick this up on their next sync.')
+                    setSaveHint(
+                      'Saved with override — on the next sync, all players will match this organizer state (replaces in-progress play on their devices).'
+                    )
                   } else if (r.error === 'no_api') {
                     setSaveHint('Sync is not available (no Redis on the server).')
                   } else {

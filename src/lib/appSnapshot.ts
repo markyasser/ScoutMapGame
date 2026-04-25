@@ -22,6 +22,11 @@ export type AppSnapshotV1 = {
   targets: TeamTargets
   tolerancePx: number
   defaultMaxGuesses: number
+  /**
+   * Set when the organizer uses “Save to players”. All clients must apply the full
+   * snapshot, ignoring uncommitted local / unpushed state on player devices.
+   */
+  adminOverride?: true
 }
 
 export function buildLocalSnapshot(): AppSnapshotV1 {
@@ -79,5 +84,6 @@ export function isAppSnapshotV1(x: unknown): x is AppSnapshotV1 {
   if (typeof o.updatedAt !== 'number' || o.updatedAt <= 0) return false
   if (typeof o.tolerancePx !== 'number' || typeof o.defaultMaxGuesses !== 'number') return false
   if (!o.game || typeof o.game !== 'object' || !o.targets || typeof o.targets !== 'object') return false
+  if (o.adminOverride !== undefined && o.adminOverride !== true) return false
   return true
 }
