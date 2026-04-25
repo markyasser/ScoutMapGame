@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { MapPoint, TeamId } from '../config/mapConfig'
 import { MapTargetsContext } from './mapTargetsContextValue'
-import { getDefaultMapTargets, loadMapTargets, saveMapTargets, TARGETS_KEY, type TeamTargets } from '../lib/mapTargetsStorage'
+import {
+  getDefaultMapTargets,
+  loadMapTargets,
+  normalizeMapTargets,
+  saveMapTargets,
+  TARGETS_KEY,
+  type TeamTargets,
+} from '../lib/mapTargetsStorage'
 
 export function MapTargetsProvider({ children }: { children: ReactNode }) {
   const [targets, setTargets] = useState<TeamTargets>(() => loadMapTargets())
@@ -34,7 +41,7 @@ export function MapTargetsProvider({ children }: { children: ReactNode }) {
   )
 
   const replaceAllTargets = useCallback((t: TeamTargets) => {
-    setTargets(t)
+    setTargets(normalizeMapTargets(t))
   }, [])
 
   const resetTeamTargetsToCodeDefaults = useCallback((team: TeamId) => {

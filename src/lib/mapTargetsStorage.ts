@@ -29,31 +29,40 @@ function clamp(n: number): number {
   return Math.min(100, Math.max(0, n))
 }
 
-/** Merge saved targets with code defaults; validate shape. */
-export function loadMapTargets(): TeamTargets {
+/**
+ * Coerce any snapshot or stored blob into a valid `TeamTargets` (4 points per team).
+ * Invalid teams fall back to code defaults; prevents `.map` crashes when a team is an object, string, etc.
+ */
+export function normalizeMapTargets(input: unknown): TeamTargets {
   const base = deepCloneCodeDefaults()
-  try {
-    const raw = localStorage.getItem(TARGETS_KEY)
-    if (!raw) return base
-    const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object') return base
-    for (const t of TEAMS) {
-      const teamArr = (parsed as Record<string, unknown>)[t]
-      if (!Array.isArray(teamArr) || teamArr.length !== 4) continue
-      const next: [MapPoint, MapPoint, MapPoint, MapPoint] = [...base[t]]
-      for (let i = 0; i < 4; i++) {
-        if (validPt(teamArr[i])) {
-          next[i] = {
-            x: clamp(teamArr[i].x),
-            y: clamp(teamArr[i].y),
-          }
+  if (!input || typeof input !== 'object') return base
+  for (const t of TEAMS) {
+    const teamArr = (input as Record<string, unknown>)[t]
+    if (!Array.isArray(teamArr) || teamArr.length !== 4) continue
+    const next: [MapPoint, MapPoint, MapPoint, MapPoint] = [...base[t]]
+    for (let i = 0; i < 4; i++) {
+      if (validPt(teamArr[i])) {
+        const pt = teamArr[i] as MapPoint
+        next[i] = {
+          x: clamp(pt.x),
+          y: clamp(pt.y),
         }
       }
-      base[t] = next
     }
-    return base
+    base[t] = next
+  }
+  return base
+}
+
+/** Merge saved targets with code defaults; validate shape. */
+export function loadMapTargets(): TeamTargets {
+  try {
+    const raw = localStorage.getItem(TARGETS_KEY)
+    if (!raw) return deepCloneCodeDefaults()
+    const parsed: unknown = JSON.parse(raw)
+    return normalizeMapTargets(parsed)
   } catch {
-    return base
+    return deepCloneCodeDefaults()
   }
 }
 

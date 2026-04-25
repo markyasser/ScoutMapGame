@@ -72,6 +72,10 @@ export function ScoutMap({
   const markStroke = 0.14
   const targetStrokeW = 0.16
 
+  const guessList = Array.isArray(guesses) ? guesses : []
+  const allTargetsSafe =
+    Array.isArray(allTargets) && allTargets.length === 4 ? allTargets : null
+
   const onPointer = useCallback(
     (e: React.MouseEvent) => {
       const el = imgRef.current
@@ -121,8 +125,8 @@ export function ScoutMap({
           })()}
           draggable={false}
         />
-        {showTarget && showAllTargets && allTargets && showAccuracyCircle
-          ? allTargets.map((p, i) => {
+        {showTarget && showAllTargets && allTargetsSafe && showAccuracyCircle
+          ? allTargetsSafe.map((p, i) => {
               const isActive = i === activeTargetIndex
               return (
                 <div
@@ -165,8 +169,8 @@ export function ScoutMap({
           preserveAspectRatio="none"
           aria-hidden
         >
-          {showTarget && showAllTargets && allTargets
-            ? allTargets.map((p, i) => {
+          {showTarget && showAllTargets && allTargetsSafe
+            ? allTargetsSafe.map((p, i) => {
                 const c = fourColors[i]!
                 const w = i === activeTargetIndex ? targetStrokeW * 1.35 : targetStrokeW
                 const s = 1.2
@@ -234,7 +238,7 @@ export function ScoutMap({
             </g>
           )}
 
-          {guesses.map((g, i) => {
+          {guessList.map((g, i) => {
             if (i === 0) {
               const t = farToCloseT(g.distancePx, heatMaxPx)
               const c = lerpColorFarToClose(t)
@@ -250,7 +254,7 @@ export function ScoutMap({
                 />
               )
             }
-            const prev = guesses[i - 1]!
+            const prev = guessList[i - 1]!
             const t = farToCloseT(g.distancePx, heatMaxPx)
             const c = lerpColorFarToClose(t)
             return (

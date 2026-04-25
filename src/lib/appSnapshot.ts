@@ -1,5 +1,5 @@
 import type { TeamTargets } from './mapTargetsStorage'
-import { getDefaultMapTargets, loadMapTargets, saveMapTargets } from './mapTargetsStorage'
+import { getDefaultMapTargets, loadMapTargets, normalizeMapTargets, saveMapTargets } from './mapTargetsStorage'
 import {
   DEFAULT_MAX_GUESSES,
   DEFAULT_TOLERANCE,
@@ -97,7 +97,8 @@ export function applySnapshotToLocalStorage(s: AppSnapshotV1): void {
   setLivePollEnabled(s.livePollEnabled === true)
   applyTeamLabelsFromSnapshot(s.teamLabels)
   saveGameState(mergeGameStateWithDefaultMaxGuesses(s.game, s.defaultMaxGuesses))
-  saveMapTargets(s.targets)
+  const targets = normalizeMapTargets(s.targets)
+  saveMapTargets(targets)
 }
 
 /** After mount — keep hooks and context aligned with a remote snapshot. */
@@ -107,10 +108,11 @@ export function applySnapshotToReact(
   onTargets: (t: TeamTargets) => void
 ): void {
   const game = mergeGameStateWithDefaultMaxGuesses(s.game, s.defaultMaxGuesses)
+  const targets = normalizeMapTargets(s.targets)
   saveGameState(game)
-  saveMapTargets(s.targets)
+  saveMapTargets(targets)
   onGame(game)
-  onTargets(s.targets)
+  onTargets(targets)
   readToleranceAndBroadcast(s.tolerancePx)
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
   setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
@@ -123,8 +125,9 @@ export function applyRemoteConfigToReact(
   s: AppSnapshotV1,
   onTargets: (t: TeamTargets) => void
 ): void {
-  saveMapTargets(s.targets)
-  onTargets(s.targets)
+  const targets = normalizeMapTargets(s.targets)
+  saveMapTargets(targets)
+  onTargets(targets)
   readToleranceAndBroadcast(s.tolerancePx)
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
   setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
