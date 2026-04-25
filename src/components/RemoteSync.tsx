@@ -15,7 +15,8 @@ import {
   applySnapshotToReact,
   isAppSnapshotV1,
 } from '../lib/appSnapshot'
-import { snapshotConfigKey, snapshotDataKey } from '../lib/snapshotDataKey'
+import { mergeGameStateWithDefaultMaxGuesses } from '../lib/gameState'
+import { snapshotConfigKey, snapshotDataKey, snapshotDataKeyFromV1 } from '../lib/snapshotDataKey'
 
 const PUSH_DEBOUNCE_MS = 150
 
@@ -63,15 +64,16 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     lastRemoteAt.current = initialRemoteAt
   }, [initialRemoteAt])
 
-  // Treat initial client state as “synced to nothing pending” so poll logic is not always “dirty”
+  /** Keep per-point `maxGuesses` in sync with the default (same as loadGameState) after the slider or remote updates. */
   useEffect(() => {
-    lastPushedDataKey.current = currentDataKey()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time after mount; refs are current
-  }, [])
+    if (applyingRemote.current) return
+    setState((prev) => mergeGameStateWithDefaultMaxGuesses(prev, defaultMaxGuesses))
+  }, [defaultMaxGuesses, setState])
 
+  // Treat initial client state as “synced to nothing pending” so poll logic is not always “dirty”
   const currentDataKey = useCallback(() => {
     return snapshotDataKey({
-      game: stateRef.current,
+      game: mergeGameStateWithDefaultMaxGuesses(stateRef.current, defaultRef.current),
       targets: targetsRef.current,
       tolerancePx: toleranceRef.current,
       defaultMaxGuesses: defaultRef.current,
@@ -79,6 +81,11 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       livePollEnabled: livePollRef.current,
       teamLabels: teamLabelsRef.current,
     })
+  }, [])
+
+  useEffect(() => {
+    lastPushedDataKey.current = currentDataKey()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time after mount; refs are current
   }, [])
 
   const snapshotConfigKeyFromRefs = useCallback(() => {
@@ -98,7 +105,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       try {
         applySnapshotToReact(s, setState, replaceAllTargets)
         lastRemoteAt.current = s.updatedAt
-        lastPushedDataKey.current = snapshotDataKey(s)
+        lastPushedDataKey.current = snapshotDataKeyFromV1(s)
       } finally {
         queueMicrotask(() => {
           applyingRemote.current = false
@@ -130,10 +137,11 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     if (!apiActive || applyingRemote.current) return
     const key = currentDataKey()
     if (key === lastPushedDataKey.current) return
+    const game = mergeGameStateWithDefaultMaxGuesses(stateRef.current, defaultRef.current)
     const snap: AppSnapshotV1 = {
       v: 1,
       updatedAt: Date.now(),
-      game: stateRef.current,
+      game,
       targets: targetsRef.current,
       tolerancePx: toleranceRef.current,
       defaultMaxGuesses: defaultRef.current,
@@ -153,10 +161,11 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       if (!apiActive) return { ok: false as const, error: 'no_api' as const }
       if (applyingRemote.current) return { ok: false as const, error: 'busy' as const }
       const key = currentDataKey()
+      const game = mergeGameStateWithDefaultMaxGuesses(stateRef.current, defaultRef.current)
       const snap: AppSnapshotV1 = {
         v: 1,
         updatedAt: Date.now(),
-        game: stateRef.current,
+        game,
         targets: targetsRef.current,
         tolerancePx: toleranceRef.current,
         defaultMaxGuesses: defaultRef.current,
@@ -216,7 +225,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
           if (!isAppSnapshotV1(j)) return
           if (j.updatedAt < lastRemoteAt.current) return
           const localKey = currentDataKey()
-          const incomingKey = snapshotDataKey(j)
+          const incomingKey = snapshotDataKeyFromV1(j)
           if (incomingKey === localKey) {
             lastRemoteAt.current = j.updatedAt
             return

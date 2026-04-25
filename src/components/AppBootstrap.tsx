@@ -1,10 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import {
-  applySnapshotToLocalStorage,
-  buildDefaultSnapshot,
-  buildLocalSnapshot,
-  isAppSnapshotV1,
-} from '../lib/appSnapshot'
+import { applySnapshotToLocalStorage, buildLocalSnapshot, isAppSnapshotV1 } from '../lib/appSnapshot'
 import { SyncApiProvider } from '../context/SyncApiContext'
 
 export function AppBootstrap({ children }: { children: ReactNode }) {
@@ -26,7 +21,9 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
           if (j != null && isAppSnapshotV1(j)) {
             chosen = j
           } else {
-            chosen = buildDefaultSnapshot()
+            // No row yet (null) or invalid JSON — keep this browser’s local storage instead of
+            // replacing waypoints, game, and settings with code-only defaults.
+            chosen = buildLocalSnapshot()
           }
         }
       } catch {

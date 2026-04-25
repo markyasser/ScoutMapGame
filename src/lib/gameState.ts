@@ -43,6 +43,42 @@ export function setDefaultMaxGuesses(n: number): void {
   window.dispatchEvent(new Event('scoutmap-default-guesses-changed'))
 }
 
+function clampDefaultMaxGuesses(n: number): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return DEFAULT_MAX_GUESSES
+  return Math.min(MAX_GUESSES_CAP, Math.max(MIN_GUESSES, Math.round(n)))
+}
+
+/**
+ * Align each point’s `maxGuesses` with the organizer default, same rule as
+ * `loadGameState` — `max(default, current)` so raising “default attempts”
+ * (without clearing points) is reflected in play and in snapshots.
+ */
+export function mergeGameStateWithDefaultMaxGuesses(
+  state: PersistedState,
+  defaultMax: number
+): PersistedState {
+  const d = clampDefaultMaxGuesses(defaultMax)
+  let anyChanged = false
+  const teams = { ...state.teams } as Record<TeamId, TeamGameState>
+  for (const tid of TEAMS) {
+    const t = state.teams[tid]!
+    const points = [0, 1, 2, 3].map((i) => {
+      const p = t.points[i]!
+      const mergedMax = Math.max(d, p.maxGuesses)
+      const newAttempts = Math.min(p.attempts, (p.maxGuesses ?? d) + 100)
+      if (mergedMax !== p.maxGuesses || newAttempts !== p.attempts) anyChanged = true
+      return {
+        ...p,
+        maxGuesses: mergedMax,
+        attempts: newAttempts,
+      } as PointState
+    }) as [PointState, PointState, PointState, PointState]
+    teams[tid] = { ...t, points }
+  }
+  if (!anyChanged) return state
+  return { teams }
+}
+
 const emptyPoint = (max: number = getDefaultMaxGuesses()): PointState => ({
   attempts: 0,
   maxGuesses: max,

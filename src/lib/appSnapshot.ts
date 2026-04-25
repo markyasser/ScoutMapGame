@@ -7,6 +7,7 @@ import {
   getDefaultPersistedState,
   getTolerancePx,
   loadGameState,
+  mergeGameStateWithDefaultMaxGuesses,
   saveGameState,
   setDefaultMaxGuesses,
   setTolerancePx,
@@ -95,7 +96,7 @@ export function applySnapshotToLocalStorage(s: AppSnapshotV1): void {
   setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
   setLivePollEnabled(s.livePollEnabled === true)
   applyTeamLabelsFromSnapshot(s.teamLabels)
-  saveGameState(s.game)
+  saveGameState(mergeGameStateWithDefaultMaxGuesses(s.game, s.defaultMaxGuesses))
   saveMapTargets(s.targets)
 }
 
@@ -105,9 +106,10 @@ export function applySnapshotToReact(
   onGame: (p: PersistedState) => void,
   onTargets: (t: TeamTargets) => void
 ): void {
-  saveGameState(s.game)
+  const game = mergeGameStateWithDefaultMaxGuesses(s.game, s.defaultMaxGuesses)
+  saveGameState(game)
   saveMapTargets(s.targets)
-  onGame(s.game)
+  onGame(game)
   onTargets(s.targets)
   readToleranceAndBroadcast(s.tolerancePx)
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)

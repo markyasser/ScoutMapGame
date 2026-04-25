@@ -395,7 +395,9 @@ export function AdminPage() {
               <p className="mt-1 text-xs text-stone-500">
                 Team <span className="text-stone-400">{teamLabels[adminTeam]}</span>. Pick a waypoint, then{' '}
                 <span className="text-stone-400">click the map</span> to set it. The teal ring shows the current hit radius
-                (same as the accuracy tolerance slider above).
+                (same as the accuracy tolerance slider above). When live sync (Redis) is on, use{' '}
+                <span className="text-stone-400">Save to players</span> after you move targets: every load pulls from
+                the server, so unsaved map edits are replaced on refresh.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
