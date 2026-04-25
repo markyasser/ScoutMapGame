@@ -14,7 +14,8 @@ import {
 } from '../lib/appSnapshot'
 import { snapshotConfigKey, snapshotDataKey } from '../lib/snapshotDataKey'
 
-const POLL_MS = 2000
+/** Keep high enough to limit Upstash REST commands; poll effect must not re-run on every state change. */
+const POLL_MS = 12_000
 const PUSH_DEBOUNCE_MS = 150
 
 type RemoteSyncProps = { children: ReactNode }
@@ -90,6 +91,11 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     },
     [setState, replaceAllTargets]
   )
+
+  const applyRemoteRef = useRef(applyRemote)
+  const replaceAllTargetsRef = useRef(replaceAllTargets)
+  applyRemoteRef.current = applyRemote
+  replaceAllTargetsRef.current = replaceAllTargets
 
   const doPutSnapshot = useCallback(async (snap: AppSnapshotV1, key: string) => {
     const r = await fetch('/api/snapshot', {
@@ -170,9 +176,13 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     }
   }, [apiActive, isAdminRoute, state, targets, tolerancePx, defaultMaxGuesses, pushIfNeeded])
 
+  // Poll and cleanup must depend only on apiActive, or the interval is recreated on every state update and GET hammers Upstash
   useEffect(() => {
     if (!apiActive) return
     const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return
+      }
       if (applyingRemote.current) return
       void (async () => {
         try {
@@ -191,19 +201,19 @@ export function RemoteSync({ children }: RemoteSyncProps) {
           }
 
           if (j.adminOverride === true) {
-            applyRemote(j)
+            applyRemoteRef.current(j)
             return
           }
 
           const hasUnpushedToServer = currentDataKey() !== lastPushedDataKey.current
           if (hasUnpushedToServer) {
             if (snapshotConfigKey(j) !== snapshotConfigKeyFromRefs()) {
-              applyRemoteConfigToReact(j, replaceAllTargets)
+              applyRemoteConfigToReact(j, replaceAllTargetsRef.current)
             }
             return
           }
 
-          applyRemote(j)
+          applyRemoteRef.current(j)
         } catch {
           /* ignore */
         }
@@ -211,8 +221,15 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     }
     void tick()
     const id = setInterval(tick, POLL_MS)
-    return () => clearInterval(id)
-  }, [apiActive, applyRemote, currentDataKey, replaceAllTargets, snapshotConfigKeyFromRefs])
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void tick()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [apiActive])
 
   return (
     <RemoteSyncActionsProvider value={saveContextValue}>{children}</RemoteSyncActionsProvider>
