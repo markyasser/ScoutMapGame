@@ -142,7 +142,7 @@ export function AdminPage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 className="font-mono text-xl text-stone-100">Organizer console</h1>
-              <p className="text-sm text-stone-500">Tolerance, default attempt budget, and trial boosts for live play.</p>
+              <p className="text-sm text-stone-500">Map and targets at the top; names and game settings follow.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {apiActive ? (
@@ -172,14 +172,16 @@ export function AdminPage() {
                   setSaveHint(null)
                   const r = await saveToRemote({ adminOverride: true })
                   setSaving(false)
-                  if (r.ok) {
+                  if (r.ok === false) {
+                    setSaveHint(
+                      r.error === 'no_api'
+                        ? 'Sync is not available (no Redis on the server).'
+                        : 'Could not save. Check the network and try again.'
+                    )
+                  } else {
                     setSaveHint(
                       'Saved with override — on the next sync, all players will match this organizer state (replaces in-progress play on their devices).'
                     )
-                  } else if (r.error === 'no_api') {
-                    setSaveHint('Sync is not available (no Redis on the server).')
-                  } else {
-                    setSaveHint('Could not save. Check the network and try again.')
                   }
                 }}
               >
@@ -203,125 +205,16 @@ export function AdminPage() {
           {saveHint != null && <p className="text-sm text-stone-400">{saveHint}</p>}
         </header>
 
-        <section className="space-y-3 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
-          <h2 className="font-mono text-sm text-stone-300">Team names</h2>
-          <p className="text-xs text-stone-500">
-            Shown on the home team picker and in the header while playing. Use{' '}
-            <span className="text-stone-400">Save to players</span> to sync.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {TEAMS.map((t) => (
-              <div key={t} className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono text-stone-500" htmlFor={`admin-team-name-${t}`}>
-                  {t}
-                </label>
-                <input
-                  id={`admin-team-name-${t}`}
-                  type="text"
-                  maxLength={80}
-                  className="rounded border border-slate-600/50 bg-slate-950/80 px-3 py-2 text-stone-100"
-                  value={teamLabels[t]}
-                  onChange={(e) => setTeamLabel(t, e.target.value)}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-4 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
-            <label className="block text-sm font-medium text-stone-200">
-              Accuracy tolerance: {Math.round(tolerancePx)} px
+        {/* 1) Map & waypoints first — team picker at top of this block */}
+        <section className="space-y-4 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
+          <h2 className="font-mono text-sm text-stone-200">Map &amp; target waypoints</h2>
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-stone-300" htmlFor="admin-active-team">
+              Team
             </label>
-            <input
-              type="range"
-              min={4}
-              max={80}
-              step={1}
-              value={tolerancePx}
-              onChange={(e) => setTolerancePx(Number(e.target.value))}
-              className="w-full accent-teal-600"
-            />
-            <p className="text-xs text-stone-500">
-              Default ~{defaultTolerance}px. Touchscreens often need 15–20+ px.
-            </p>
-
-            <div className="border-t border-slate-700/50 pt-4">
-              <label className="flex cursor-pointer items-center gap-2.5 text-sm text-stone-200">
-                <input
-                  type="checkbox"
-                  className="size-4 rounded border-slate-500 bg-slate-950 text-teal-600 focus:ring-teal-800/50"
-                  checked={livePollEnabled}
-                  onChange={(e) => setLivePollEnabled(e.target.checked)}
-                />
-                Background live sync
-              </label>
-              <p className="mt-2 text-xs text-stone-500">
-                <span className="text-stone-400">Off (default):</span> no repeated server requests while the page stays
-                open. Everyone loads the game from the server when they open the app or <strong>refresh the tab</strong>.{' '}
-                <span className="text-stone-400">On:</span> team devices recheck the server on the interval below (uses
-                API quota). Use <span className="text-stone-400">Save to players</span> to publish settings.
-              </p>
-            </div>
-
-            <div className="border-t border-slate-700/50 pt-4">
-              <label className="block text-sm font-medium text-stone-200" htmlFor="player-poll-sec">
-                Poll interval (when background sync is on): {Math.round(playerPollIntervalMs / 1000)}s
-              </label>
-              <p className="mb-2 text-xs text-stone-500">
-                How often team devices request updates from the server (longer = fewer API calls, slower updates). Use{' '}
-                <span className="text-stone-400">Save to players</span> to apply on all devices. Default {defaultPlayerPollMs / 1000}s.
-              </p>
-              <input
-                id="player-poll-sec"
-                type="range"
-                min={MIN_MS / 1000}
-                max={MAX_MS / 1000}
-                step={1}
-                value={playerPollIntervalMs / 1000}
-                onChange={(e) => setPlayerPollIntervalMs(Number(e.target.value) * 1000)}
-                disabled={!livePollEnabled}
-                className="w-full accent-teal-600 enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-              />
-              <p className="mt-1 text-xs text-stone-600">
-                {MIN_MS / 1000}s–{MAX_MS / 1000}s
-              </p>
-            </div>
-
-            <div className="border-t border-slate-700/50 pt-4">
-              <label className="block text-sm font-medium text-stone-200" htmlFor="default-tries">
-                Default attempts per waypoint
-              </label>
-              <p className="mb-2 text-xs text-stone-500">
-                Starting guess budget for each point (new games, &quot;Reset all progress&quot;, and &quot;Clear trials&quot;).
-                Teams already playing keep their current limits until you clear a point or reset.
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <input
-                  id="default-tries"
-                  type="number"
-                  min={minGuesses}
-                  max={maxGuessesCap}
-                  step={1}
-                  className="w-24 rounded border border-slate-600/50 bg-slate-950/80 px-3 py-2 text-stone-100"
-                  value={defaultMaxGuesses}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10)
-                    if (!Number.isFinite(v)) return
-                    setDefaultTries(v)
-                  }}
-                />
-                <span className="text-xs text-stone-500">
-                  Range {minGuesses}–{maxGuessesCap}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
-            <p className="text-sm text-stone-400">Active team (trials for current point)</p>
             <select
-              className="w-full rounded border border-slate-600/50 bg-slate-950/80 px-3 py-2 text-stone-100"
+              id="admin-active-team"
+              className="w-full max-w-md rounded-lg border border-slate-600/50 bg-slate-950/80 px-3 py-2.5 text-sm text-stone-100"
               value={adminTeam}
               onChange={(e) => {
                 setAdminTeam(e.target.value as TeamId)
@@ -337,69 +230,15 @@ export function AdminPage() {
                 )
               })}
             </select>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <button
-                type="button"
-                onClick={increaseTrials}
-                disabled={curIdx >= 4}
-                className="min-h-[2.75rem] flex-1 rounded-lg border border-teal-800/45 bg-teal-950/30 px-3 py-2.5 text-sm font-medium text-stone-100 hover:bg-teal-950/50 disabled:opacity-40"
-              >
-                +1 attempt
-              </button>
-              <button
-                type="button"
-                onClick={clearTrialsForCurrentPoint}
-                disabled={curIdx >= 4}
-                className="min-h-[2.75rem] flex-1 rounded-lg border-2 border-slate-500/60 bg-slate-800/60 px-3 py-2.5 text-sm font-semibold text-stone-100 shadow-sm hover:border-rose-700/50 hover:bg-slate-800 disabled:opacity-40"
-              >
-                Clear trials
-              </button>
-            </div>
-            <p className="text-xs text-stone-500">
-              <span className="text-stone-400">+1</span> adds a guess.{' '}
-              <span className="text-stone-400">Clear trials</span> resets this point to {defaultMaxGuesses} attempts, no
-              markers, no extra +1s.
-            </p>
-            <button
-              type="button"
-              onClick={async () => {
-                if (!window.confirm('Reset all teams?')) return
-                flushSync(() => {
-                  resetAllTeams()
-                })
-                if (apiActive) {
-                  setSaving(true)
-                  setSaveHint(null)
-                  const r = await saveToRemote({ adminOverride: true })
-                  setSaving(false)
-                  if (r.ok) {
-                    setSaveHint('Progress reset and pushed to all devices.')
-                  } else {
-                    setSaveHint('Local progress was reset, but the server could not be updated. Use Save to players.')
-                  }
-                } else {
-                  setSaveHint('Progress reset on this device only — add Redis in Vercel to sync the reset to players.')
-                }
-              }}
-              className="w-full text-xs text-rose-400/85 hover:text-rose-300 hover:underline"
-            >
-              Reset all progress
-            </button>
+            <p className="text-xs text-stone-500">Targets, hit rings, and trial tools below all use this team.</p>
           </div>
-        </section>
 
-        <section className="space-y-4 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-mono text-sm text-stone-300">Place target waypoints on the map</h2>
-              <p className="mt-1 text-xs text-stone-500">
-                Team <span className="text-stone-400">{teamLabels[adminTeam]}</span>. Pick a waypoint, then{' '}
-                <span className="text-stone-400">click the map</span> to set it. The teal ring shows the current hit radius
-                (same as the accuracy tolerance slider above). When live sync (Redis) is on, use{' '}
-                <span className="text-stone-400">Save to players</span> after you move targets: every load pulls from
-                the server, so unsaved map edits are replaced on refresh.
-              </p>
-            </div>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-t border-slate-700/50 pt-4">
+            <p className="text-sm text-stone-400">
+              Pick a waypoint, then <span className="text-stone-300">click the map</span> to place it. The ring matches
+              the accuracy setting below. After moving targets, use <span className="text-stone-300">Save to players</span>{' '}
+              so a refresh keeps your map.
+            </p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -559,6 +398,181 @@ export function AdminPage() {
               })}
             </div>
           </details>
+        </section>
+
+        <section className="space-y-3 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
+          <h2 className="font-mono text-sm text-stone-200">Team names</h2>
+          <p className="text-xs text-stone-500">
+            Shown on the home team picker and in the header while playing. Use{' '}
+            <span className="text-stone-400">Save to players</span> to sync.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {TEAMS.map((t) => (
+              <div key={t} className="flex flex-col gap-1.5">
+                <label className="text-xs font-mono text-stone-500" htmlFor={`admin-team-name-${t}`}>
+                  {t}
+                </label>
+                <input
+                  id={`admin-team-name-${t}`}
+                  type="text"
+                  maxLength={80}
+                  className="rounded border border-slate-600/50 bg-slate-950/80 px-3 py-2 text-stone-100"
+                  value={teamLabels[t]}
+                  onChange={(e) => setTeamLabel(t, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-6 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
+          <h2 className="font-mono text-sm text-stone-200">Accuracy &amp; game configuration</h2>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-200" htmlFor="tolerance-px">
+                  Hit radius (accuracy): {Math.round(tolerancePx)} px
+                </label>
+                <p className="mb-2 text-xs text-stone-500">
+                  Size of the ring on the map. Default ~{defaultTolerance}px; touchscreens often use 15–20+.
+                </p>
+                <input
+                  id="tolerance-px"
+                  type="range"
+                  min={4}
+                  max={80}
+                  step={1}
+                  value={tolerancePx}
+                  onChange={(e) => setTolerancePx(Number(e.target.value))}
+                  className="w-full accent-teal-600"
+                />
+              </div>
+
+              <div className="border-t border-slate-700/50 pt-4">
+                <label className="flex cursor-pointer items-center gap-2.5 text-sm text-stone-200">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-slate-500 bg-slate-950 text-teal-600 focus:ring-teal-800/50"
+                    checked={livePollEnabled}
+                    onChange={(e) => setLivePollEnabled(e.target.checked)}
+                  />
+                  Background live sync
+                </label>
+                <p className="mt-2 text-xs text-stone-500">
+                  <span className="text-stone-400">Off (default):</span> no repeated requests while a tab is open.{' '}
+                  <span className="text-stone-400">On:</span> team devices poll on the interval below. Use{' '}
+                  <span className="text-stone-400">Save to players</span> to publish.
+                </p>
+              </div>
+
+              <div className="border-t border-slate-700/50 pt-4">
+                <label className="block text-sm font-medium text-stone-200" htmlFor="player-poll-sec">
+                  Poll interval (when live sync is on): {Math.round(playerPollIntervalMs / 1000)}s
+                </label>
+                <p className="mb-2 text-xs text-stone-500">
+                  Default {defaultPlayerPollMs / 1000}s. Use <span className="text-stone-400">Save to players</span> to
+                  apply everywhere.
+                </p>
+                <input
+                  id="player-poll-sec"
+                  type="range"
+                  min={MIN_MS / 1000}
+                  max={MAX_MS / 1000}
+                  step={1}
+                  value={playerPollIntervalMs / 1000}
+                  onChange={(e) => setPlayerPollIntervalMs(Number(e.target.value) * 1000)}
+                  disabled={!livePollEnabled}
+                  className="w-full accent-teal-600 enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                />
+                <p className="mt-1 text-xs text-stone-600">
+                  {MIN_MS / 1000}s–{MAX_MS / 1000}s
+                </p>
+              </div>
+
+              <div className="border-t border-slate-700/50 pt-4">
+                <label className="block text-sm font-medium text-stone-200" htmlFor="default-tries">
+                  Default attempts per waypoint
+                </label>
+                <p className="mb-2 text-xs text-stone-500">
+                  For new/cleared points. Teams in progress keep limits until you clear a point or reset.
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    id="default-tries"
+                    type="number"
+                    min={minGuesses}
+                    max={maxGuessesCap}
+                    step={1}
+                    className="w-24 rounded border border-slate-600/50 bg-slate-950/80 px-3 py-2 text-stone-100"
+                    value={defaultMaxGuesses}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10)
+                      if (!Number.isFinite(v)) return
+                      setDefaultTries(v)
+                    }}
+                  />
+                  <span className="text-xs text-stone-500">
+                    Range {minGuesses}–{maxGuessesCap}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-slate-700/50 bg-slate-950/25 p-4">
+              <h3 className="text-sm font-medium text-stone-200">This team’s progress</h3>
+              <p className="text-xs text-stone-500">
+                {teamLabels[adminTeam]} — point {curIdx >= 4 ? 'finished' : `${curIdx + 1} of 4`}.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                <button
+                  type="button"
+                  onClick={increaseTrials}
+                  disabled={curIdx >= 4}
+                  className="min-h-11 flex-1 rounded-lg border border-teal-800/45 bg-teal-950/30 px-3 py-2.5 text-sm font-medium text-stone-100 hover:bg-teal-950/50 disabled:opacity-40"
+                >
+                  +1 attempt
+                </button>
+                <button
+                  type="button"
+                  onClick={clearTrialsForCurrentPoint}
+                  disabled={curIdx >= 4}
+                  className="min-h-11 flex-1 rounded-lg border-2 border-slate-500/60 bg-slate-800/60 px-3 py-2.5 text-sm font-semibold text-stone-100 shadow-sm hover:border-rose-700/50 hover:bg-slate-800 disabled:opacity-40"
+                >
+                  Clear trials
+                </button>
+              </div>
+              <p className="text-xs text-stone-500">
+                <span className="text-stone-400">+1</span> adds a guess.{' '}
+                <span className="text-stone-400">Clear trials</span> resets the current point to {defaultMaxGuesses}{' '}
+                attempts, clears markers and extra +1s.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!window.confirm('Reset all teams?')) return
+                  flushSync(() => {
+                    resetAllTeams()
+                  })
+                  if (apiActive) {
+                    setSaving(true)
+                    setSaveHint(null)
+                    const r = await saveToRemote({ adminOverride: true })
+                    setSaving(false)
+                    if (r.ok) {
+                      setSaveHint('Progress reset and pushed to all devices.')
+                    } else {
+                      setSaveHint('Local progress was reset, but the server could not be updated. Use Save to players.')
+                    }
+                  } else {
+                    setSaveHint('Progress reset on this device only — add Redis in Vercel to sync the reset to players.')
+                  }
+                }}
+                className="w-full text-left text-xs text-rose-400/85 hover:text-rose-300 hover:underline"
+              >
+                Reset all teams’ progress
+              </button>
+            </div>
+          </div>
         </section>
       </div>
     </div>
