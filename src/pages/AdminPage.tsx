@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { TEAMS, TEAM_LABELS, type TeamId } from '../config/mapConfig'
 import { ScoutMap } from '../components/ScoutMap'
@@ -274,8 +275,24 @@ export function AdminPage() {
             </p>
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm('Reset all teams?')) resetAllTeams()
+              onClick={async () => {
+                if (!window.confirm('Reset all teams?')) return
+                flushSync(() => {
+                  resetAllTeams()
+                })
+                if (apiActive) {
+                  setSaving(true)
+                  setSaveHint(null)
+                  const r = await saveToRemote({ adminOverride: true })
+                  setSaving(false)
+                  if (r.ok) {
+                    setSaveHint('Progress reset and pushed to all devices.')
+                  } else {
+                    setSaveHint('Local progress was reset, but the server could not be updated. Use Save to players.')
+                  }
+                } else {
+                  setSaveHint('Progress reset on this device only — add Redis in Vercel to sync the reset to players.')
+                }
               }}
               className="w-full text-xs text-rose-400/85 hover:text-rose-300 hover:underline"
             >

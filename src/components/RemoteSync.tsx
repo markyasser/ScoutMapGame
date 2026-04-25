@@ -195,9 +195,8 @@ export function RemoteSync({ children }: RemoteSyncProps) {
             return
           }
 
-          const playerHasUnpushedToServer =
-            !isAdminRoute && currentDataKey() !== lastPushedDataKey.current
-          if (playerHasUnpushedToServer) {
+          const hasUnpushedToServer = currentDataKey() !== lastPushedDataKey.current
+          if (hasUnpushedToServer) {
             if (snapshotConfigKey(j) !== snapshotConfigKeyFromRefs()) {
               applyRemoteConfigToReact(j, replaceAllTargets)
             }
@@ -213,14 +212,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     void tick()
     const id = setInterval(tick, POLL_MS)
     return () => clearInterval(id)
-  }, [
-    apiActive,
-    applyRemote,
-    currentDataKey,
-    isAdminRoute,
-    replaceAllTargets,
-    snapshotConfigKeyFromRefs,
-  ])
+  }, [apiActive, applyRemote, currentDataKey, replaceAllTargets, snapshotConfigKeyFromRefs])
 
   return (
     <RemoteSyncActionsProvider value={saveContextValue}>{children}</RemoteSyncActionsProvider>

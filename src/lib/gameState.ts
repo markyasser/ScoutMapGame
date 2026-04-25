@@ -68,6 +68,22 @@ function defaultPersisted(): PersistedState {
   return { teams }
 }
 
+function defaultTeamStateCode(): TeamGameState {
+  const max = DEFAULT_MAX_GUESSES
+  return {
+    currentPointIndex: 0,
+    points: [emptyPoint(max), emptyPoint(max), emptyPoint(max), emptyPoint(max)],
+    foundMask: [false, false, false, false],
+  }
+}
+
+/** Fresh game state from code only — does not read localStorage. */
+export function getDefaultPersistedState(): PersistedState {
+  const teams = {} as Record<TeamId, TeamGameState>
+  for (const t of TEAMS) teams[t] = defaultTeamStateCode()
+  return { teams }
+}
+
 export function loadGameState(): PersistedState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)

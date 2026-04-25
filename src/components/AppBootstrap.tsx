@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import {
   applySnapshotToLocalStorage,
+  buildDefaultSnapshot,
   buildLocalSnapshot,
   isAppSnapshotV1,
-  pickNewer,
 } from '../lib/appSnapshot'
 import { SyncApiProvider } from '../context/SyncApiContext'
 
@@ -24,7 +24,9 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
         if (r.ok) {
           const j: unknown = await r.json()
           if (j != null && isAppSnapshotV1(j)) {
-            chosen = pickNewer(j, local)
+            chosen = j
+          } else {
+            chosen = buildDefaultSnapshot()
           }
         }
       } catch {

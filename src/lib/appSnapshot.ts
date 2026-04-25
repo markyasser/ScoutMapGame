@@ -1,7 +1,10 @@
 import type { TeamTargets } from './mapTargetsStorage'
-import { loadMapTargets, saveMapTargets } from './mapTargetsStorage'
+import { getDefaultMapTargets, loadMapTargets, saveMapTargets } from './mapTargetsStorage'
 import {
+  DEFAULT_MAX_GUESSES,
+  DEFAULT_TOLERANCE,
   getDefaultMaxGuesses,
+  getDefaultPersistedState,
   getTolerancePx,
   loadGameState,
   saveGameState,
@@ -40,6 +43,21 @@ export function buildLocalSnapshot(): AppSnapshotV1 {
   }
 }
 
+/**
+ * Code defaults only — no localStorage. Used when the API is up but the DB has no row yet
+ * (single source of truth: wait for server, do not merge with a prior local copy).
+ */
+export function buildDefaultSnapshot(): AppSnapshotV1 {
+  return {
+    v: SNAPSHOT_V,
+    updatedAt: Date.now(),
+    game: getDefaultPersistedState(),
+    targets: getDefaultMapTargets(),
+    tolerancePx: DEFAULT_TOLERANCE,
+    defaultMaxGuesses: DEFAULT_MAX_GUESSES,
+  }
+}
+
 /** Before first React mount — e.g. after fetching remote. */
 export function applySnapshotToLocalStorage(s: AppSnapshotV1): void {
   setTolerancePx(s.tolerancePx)
@@ -71,10 +89,6 @@ export function applyRemoteConfigToReact(
   onTargets(s.targets)
   readToleranceAndBroadcast(s.tolerancePx)
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
-}
-
-export function pickNewer(a: AppSnapshotV1, b: AppSnapshotV1): AppSnapshotV1 {
-  return a.updatedAt >= b.updatedAt ? a : b
 }
 
 export function isAppSnapshotV1(x: unknown): x is AppSnapshotV1 {
