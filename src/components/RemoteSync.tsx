@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom'
 import { useGame } from '../hooks/useGameContext'
 import { useMapTargets } from '../hooks/useMapTargetsContext'
 import { useDefaultMaxGuesses } from '../hooks/useDefaultMaxGuesses'
+import { useLivePollEnabled } from '../hooks/useLivePollEnabled'
+import { usePlayerPollInterval } from '../hooks/usePlayerPollInterval'
 import { useTolerancePx } from '../hooks/useToleranceSync'
 import { useSyncApi } from '../context/SyncApiContext'
 import { RemoteSyncActionsProvider } from '../context/RemoteSyncActionsContext'
@@ -14,15 +16,13 @@ import {
 } from '../lib/appSnapshot'
 import { snapshotConfigKey, snapshotDataKey } from '../lib/snapshotDataKey'
 
-/** Keep high enough to limit Upstash REST commands; poll effect must not re-run on every state change. */
-const POLL_MS = 12_000
 const PUSH_DEBOUNCE_MS = 150
 
 type RemoteSyncProps = { children: ReactNode }
 
 /**
- * Pushes local changes to /api/snapshot and polls for updates from other devices
- * (no-op when the API is not available, e.g. no Redis or 501).
+ * Pushes local changes to /api/snapshot. Optional background GET polling is controlled
+ * by `livePollEnabled` (off by default) — when off, only AppBootstrap and page refresh load from the server.
  * Auto-push is disabled on /admin; use the Save button to publish organizer changes.
  */
 export function RemoteSync({ children }: RemoteSyncProps) {
@@ -34,6 +34,8 @@ export function RemoteSync({ children }: RemoteSyncProps) {
   const { targets, replaceAllTargets } = useMapTargets()
   const { defaultMaxGuesses } = useDefaultMaxGuesses()
   const { tolerancePx } = useTolerancePx()
+  const { playerPollIntervalMs } = usePlayerPollInterval()
+  const { livePollEnabled } = useLivePollEnabled()
 
   const lastRemoteAt = useRef(initialRemoteAt)
   const applyingRemote = useRef(false)
@@ -44,10 +46,14 @@ export function RemoteSync({ children }: RemoteSyncProps) {
   const targetsRef = useRef(targets)
   const toleranceRef = useRef(tolerancePx)
   const defaultRef = useRef(defaultMaxGuesses)
+  const playerPollRef = useRef(playerPollIntervalMs)
+  const livePollRef = useRef(livePollEnabled)
   stateRef.current = state
   targetsRef.current = targets
   toleranceRef.current = tolerancePx
   defaultRef.current = defaultMaxGuesses
+  playerPollRef.current = playerPollIntervalMs
+  livePollRef.current = livePollEnabled
 
   useEffect(() => {
     lastRemoteAt.current = initialRemoteAt
@@ -65,6 +71,8 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       targets: targetsRef.current,
       tolerancePx: toleranceRef.current,
       defaultMaxGuesses: defaultRef.current,
+      playerPollIntervalMs: playerPollRef.current,
+      livePollEnabled: livePollRef.current,
     })
   }, [])
 
@@ -73,6 +81,8 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       targets: targetsRef.current,
       tolerancePx: toleranceRef.current,
       defaultMaxGuesses: defaultRef.current,
+      playerPollIntervalMs: playerPollRef.current,
+      livePollEnabled: livePollRef.current,
     })
   }, [])
 
@@ -121,6 +131,8 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       targets: targetsRef.current,
       tolerancePx: toleranceRef.current,
       defaultMaxGuesses: defaultRef.current,
+      playerPollIntervalMs: playerPollRef.current,
+      livePollEnabled: livePollRef.current,
     }
     try {
       await doPutSnapshot(snap, key)
@@ -141,6 +153,8 @@ export function RemoteSync({ children }: RemoteSyncProps) {
         targets: targetsRef.current,
         tolerancePx: toleranceRef.current,
         defaultMaxGuesses: defaultRef.current,
+        playerPollIntervalMs: playerPollRef.current,
+        livePollEnabled: livePollRef.current,
       }
       if (options?.adminOverride) {
         snap.adminOverride = true
@@ -174,11 +188,11 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current)
     }
-  }, [apiActive, isAdminRoute, state, targets, tolerancePx, defaultMaxGuesses, pushIfNeeded])
+  }, [apiActive, isAdminRoute, state, targets, tolerancePx, defaultMaxGuesses, playerPollIntervalMs, livePollEnabled, pushIfNeeded])
 
-  // Poll and cleanup must depend only on apiActive, or the interval is recreated on every state update and GET hammers Upstash
+  // Background poll: off by default; interval only when livePollEnabled (refs keep effect deps small)
   useEffect(() => {
-    if (!apiActive) return
+    if (!apiActive || !livePollEnabled) return
     const tick = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         return
@@ -220,7 +234,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       })()
     }
     void tick()
-    const id = setInterval(tick, POLL_MS)
+    const id = setInterval(tick, playerPollIntervalMs)
     const onVisible = () => {
       if (document.visibilityState === 'visible') void tick()
     }
@@ -229,7 +243,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       clearInterval(id)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [apiActive])
+  }, [apiActive, livePollEnabled, playerPollIntervalMs])
 
   return (
     <RemoteSyncActionsProvider value={saveContextValue}>{children}</RemoteSyncActionsProvider>

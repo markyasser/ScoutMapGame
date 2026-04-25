@@ -6,7 +6,10 @@ import { ScoutMap } from '../components/ScoutMap'
 import { useGame } from '../hooks/useGameContext'
 import { useMapTargets } from '../hooks/useMapTargetsContext'
 import { useDefaultMaxGuesses } from '../hooks/useDefaultMaxGuesses'
+import { useLivePollEnabled } from '../hooks/useLivePollEnabled'
+import { usePlayerPollInterval } from '../hooks/usePlayerPollInterval'
 import { useTolerancePx } from '../hooks/useToleranceSync'
+import { MAX_MS, MIN_MS } from '../lib/playerPollInterval'
 import { getDefaultMaxGuesses } from '../lib/gameState'
 import { useSyncApi } from '../context/SyncApiContext'
 import { useRemoteSyncActions } from '../context/RemoteSyncActionsContext'
@@ -30,6 +33,8 @@ export function AdminPage() {
     minGuesses,
     maxGuessesCap,
   } = useDefaultMaxGuesses()
+  const { playerPollIntervalMs, setPlayerPollIntervalMs, defaultPlayerPollMs } = usePlayerPollInterval()
+  const { livePollEnabled, setLivePollEnabled } = useLivePollEnabled()
   const [adminTeam, setAdminTeam] = useState<TeamId>('team1')
   const [helper, setHelper] = useState(true)
   /** Which waypoint (0–3) is shown on the map for click-to-place and the accuracy ring */
@@ -139,10 +144,20 @@ export function AdminPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {apiActive ? (
-                <span className="text-xs text-teal-500/90">Live sync: on (players get updates in a few seconds)</span>
+                livePollEnabled ? (
+                  <span className="text-xs text-teal-500/90">
+                    API + background sync on — devices poll the server on a timer.
+                  </span>
+                ) : (
+                  <span className="max-w-md text-xs text-teal-500/80">
+                    API on — background poll off. Players and this tab load data on open/refresh; use Save to players to
+                    update the server.
+                  </span>
+                )
               ) : (
                 <span className="max-w-md text-xs text-amber-400/95">
-                  Live sync: off — in Vercel, add an Upstash Redis store (or set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN), then redeploy. Without that, this browser and players never share data.
+                  Live sync: off — in Vercel, add an Upstash Redis store (or set UPSTASH_REDIS_REST_URL and
+                  UPSTASH_REDIS_REST_TOKEN), then redeploy. Without that, this browser and players never share data.
                 </span>
               )}
               <button
@@ -203,6 +218,48 @@ export function AdminPage() {
             <p className="text-xs text-stone-500">
               Default ~{defaultTolerance}px. Touchscreens often need 15–20+ px.
             </p>
+
+            <div className="border-t border-slate-700/50 pt-4">
+              <label className="flex cursor-pointer items-center gap-2.5 text-sm text-stone-200">
+                <input
+                  type="checkbox"
+                  className="size-4 rounded border-slate-500 bg-slate-950 text-teal-600 focus:ring-teal-800/50"
+                  checked={livePollEnabled}
+                  onChange={(e) => setLivePollEnabled(e.target.checked)}
+                />
+                Background live sync
+              </label>
+              <p className="mt-2 text-xs text-stone-500">
+                <span className="text-stone-400">Off (default):</span> no repeated server requests while the page stays
+                open. Everyone loads the game from the server when they open the app or <strong>refresh the tab</strong>.{' '}
+                <span className="text-stone-400">On:</span> team devices recheck the server on the interval below (uses
+                API quota). Use <span className="text-stone-400">Save to players</span> to publish settings.
+              </p>
+            </div>
+
+            <div className="border-t border-slate-700/50 pt-4">
+              <label className="block text-sm font-medium text-stone-200" htmlFor="player-poll-sec">
+                Poll interval (when background sync is on): {Math.round(playerPollIntervalMs / 1000)}s
+              </label>
+              <p className="mb-2 text-xs text-stone-500">
+                How often team devices request updates from the server (longer = fewer API calls, slower updates). Use{' '}
+                <span className="text-stone-400">Save to players</span> to apply on all devices. Default {defaultPlayerPollMs / 1000}s.
+              </p>
+              <input
+                id="player-poll-sec"
+                type="range"
+                min={MIN_MS / 1000}
+                max={MAX_MS / 1000}
+                step={1}
+                value={playerPollIntervalMs / 1000}
+                onChange={(e) => setPlayerPollIntervalMs(Number(e.target.value) * 1000)}
+                disabled={!livePollEnabled}
+                className="w-full accent-teal-600 enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+              />
+              <p className="mt-1 text-xs text-stone-600">
+                {MIN_MS / 1000}s–{MAX_MS / 1000}s
+              </p>
+            </div>
 
             <div className="border-t border-slate-700/50 pt-4">
               <label className="block text-sm font-medium text-stone-200" htmlFor="default-tries">

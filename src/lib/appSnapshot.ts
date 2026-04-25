@@ -14,6 +14,14 @@ import {
 } from './gameState'
 import { readDefaultMaxGuessesAndBroadcast } from '../hooks/useDefaultMaxGuesses'
 import { readToleranceAndBroadcast } from '../hooks/useToleranceSync'
+import { getLivePollEnabled, setLivePollEnabled } from './livePollEnabled'
+import {
+  DEFAULT_PLAYER_POLL_MS,
+  getPlayerPollIntervalMs,
+  MAX_MS,
+  MIN_MS,
+  setPlayerPollIntervalMs,
+} from './playerPollInterval'
 
 const SNAPSHOT_V = 1 as const
 
@@ -25,6 +33,13 @@ export type AppSnapshotV1 = {
   targets: TeamTargets
   tolerancePx: number
   defaultMaxGuesses: number
+  /** How often player devices `GET` /api/snapshot (ms). Organizer-tunable; 3s–120s. */
+  playerPollIntervalMs?: number
+  /**
+   * When true, devices poll the server on a timer. When false (default), only the
+   * initial load and full page refresh fetch — no background GET loop.
+   */
+  livePollEnabled?: boolean
   /**
    * Set when the organizer uses “Save to players”. All clients must apply the full
    * snapshot, ignoring uncommitted local / unpushed state on player devices.
@@ -40,6 +55,8 @@ export function buildLocalSnapshot(): AppSnapshotV1 {
     targets: loadMapTargets(),
     tolerancePx: getTolerancePx(),
     defaultMaxGuesses: getDefaultMaxGuesses(),
+    playerPollIntervalMs: getPlayerPollIntervalMs(),
+    livePollEnabled: getLivePollEnabled(),
   }
 }
 
@@ -55,6 +72,8 @@ export function buildDefaultSnapshot(): AppSnapshotV1 {
     targets: getDefaultMapTargets(),
     tolerancePx: DEFAULT_TOLERANCE,
     defaultMaxGuesses: DEFAULT_MAX_GUESSES,
+    playerPollIntervalMs: DEFAULT_PLAYER_POLL_MS,
+    livePollEnabled: false,
   }
 }
 
@@ -62,6 +81,8 @@ export function buildDefaultSnapshot(): AppSnapshotV1 {
 export function applySnapshotToLocalStorage(s: AppSnapshotV1): void {
   setTolerancePx(s.tolerancePx)
   setDefaultMaxGuesses(s.defaultMaxGuesses)
+  setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
+  setLivePollEnabled(s.livePollEnabled === true)
   saveGameState(s.game)
   saveMapTargets(s.targets)
 }
@@ -78,6 +99,8 @@ export function applySnapshotToReact(
   onTargets(s.targets)
   readToleranceAndBroadcast(s.tolerancePx)
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
+  setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
+  setLivePollEnabled(s.livePollEnabled === true)
 }
 
 /** Map, tolerance, and defaults from organizer — does not touch game (team progress). */
@@ -89,6 +112,8 @@ export function applyRemoteConfigToReact(
   onTargets(s.targets)
   readToleranceAndBroadcast(s.tolerancePx)
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
+  setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
+  setLivePollEnabled(s.livePollEnabled === true)
 }
 
 export function isAppSnapshotV1(x: unknown): x is AppSnapshotV1 {
@@ -99,5 +124,10 @@ export function isAppSnapshotV1(x: unknown): x is AppSnapshotV1 {
   if (typeof o.tolerancePx !== 'number' || typeof o.defaultMaxGuesses !== 'number') return false
   if (!o.game || typeof o.game !== 'object' || !o.targets || typeof o.targets !== 'object') return false
   if (o.adminOverride !== undefined && o.adminOverride !== true) return false
+  if (o.playerPollIntervalMs !== undefined) {
+    if (typeof o.playerPollIntervalMs !== 'number' || !Number.isFinite(o.playerPollIntervalMs)) return false
+    if (o.playerPollIntervalMs < MIN_MS || o.playerPollIntervalMs > MAX_MS) return false
+  }
+  if (o.livePollEnabled !== undefined && typeof o.livePollEnabled !== 'boolean') return false
   return true
 }
