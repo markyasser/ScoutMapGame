@@ -1,9 +1,11 @@
-import { useEffect, useRef, useCallback, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useMemo, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useGame } from '../hooks/useGameContext'
 import { useMapTargets } from '../hooks/useMapTargetsContext'
 import { useDefaultMaxGuesses } from '../hooks/useDefaultMaxGuesses'
 import { useTolerancePx } from '../hooks/useToleranceSync'
 import { useSyncApi } from '../context/SyncApiContext'
+import { RemoteSyncActionsProvider } from '../context/RemoteSyncActionsContext'
 import {
   type AppSnapshotV1,
   applySnapshotToReact,
@@ -18,19 +20,14 @@ type RemoteSyncProps = { children: ReactNode }
 
 /**
  * Pushes local changes to /api/snapshot and polls for updates from other devices
- * (no-op when the API is not available, e.g. no KV or 501).
+ * (no-op when the API is not available, e.g. no Redis or 501).
+ * Auto-push is disabled on /admin; use the Save button to publish organizer changes.
  */
 export function RemoteSync({ children }: RemoteSyncProps) {
-  return (
-    <>
-      <RemoteSyncInner />
-      {children}
-    </>
-  )
-}
-
-function RemoteSyncInner() {
   const { apiActive, initialRemoteAt } = useSyncApi()
+  const { pathname } = useLocation()
+  const isAdminRoute = pathname === '/admin'
+
   const { state, setState } = useGame()
   const { targets, replaceAllTargets } = useMapTargets()
   const { defaultMaxGuesses } = useDefaultMaxGuesses()
@@ -79,6 +76,18 @@ function RemoteSyncInner() {
     [setState, replaceAllTargets]
   )
 
+  const doPutSnapshot = useCallback(async (snap: AppSnapshotV1, key: string) => {
+    const r = await fetch('/api/snapshot', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(snap),
+    })
+    if (r.ok) {
+      lastPushedDataKey.current = key
+    }
+    return r.ok
+  }, [])
+
   const pushIfNeeded = useCallback(async () => {
     if (!apiActive || applyingRemote.current) return
     const key = currentDataKey()
@@ -92,21 +101,43 @@ function RemoteSyncInner() {
       defaultMaxGuesses: defaultRef.current,
     }
     try {
-      const r = await fetch('/api/snapshot', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(snap),
-      })
-      if (r.ok) {
-        lastPushedDataKey.current = key
-      }
+      await doPutSnapshot(snap, key)
     } catch {
       /* retry on next debounce */
     }
-  }, [apiActive, currentDataKey])
+  }, [apiActive, currentDataKey, doPutSnapshot])
+
+  const saveToRemote = useCallback(async () => {
+    if (!apiActive) return { ok: false as const, error: 'no_api' as const }
+    if (applyingRemote.current) return { ok: false as const, error: 'busy' as const }
+    const key = currentDataKey()
+    const snap: AppSnapshotV1 = {
+      v: 1,
+      updatedAt: Date.now(),
+      game: stateRef.current,
+      targets: targetsRef.current,
+      tolerancePx: toleranceRef.current,
+      defaultMaxGuesses: defaultRef.current,
+    }
+    try {
+      const ok = await doPutSnapshot(snap, key)
+      return ok ? { ok: true as const } : { ok: false as const, error: 'http' as const }
+    } catch {
+      return { ok: false as const, error: 'network' as const }
+    }
+  }, [apiActive, currentDataKey, doPutSnapshot])
+
+  const saveContextValue = useMemo(() => ({ saveToRemote }), [saveToRemote])
 
   useEffect(() => {
     if (!apiActive) return
+    if (isAdminRoute) {
+      if (pushTimer.current) {
+        clearTimeout(pushTimer.current)
+        pushTimer.current = null
+      }
+      return
+    }
     if (applyingRemote.current) return
     if (pushTimer.current) clearTimeout(pushTimer.current)
     pushTimer.current = setTimeout(() => {
@@ -115,7 +146,7 @@ function RemoteSyncInner() {
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current)
     }
-  }, [apiActive, state, targets, tolerancePx, defaultMaxGuesses, pushIfNeeded])
+  }, [apiActive, isAdminRoute, state, targets, tolerancePx, defaultMaxGuesses, pushIfNeeded])
 
   useEffect(() => {
     if (!apiActive) return
@@ -147,5 +178,7 @@ function RemoteSyncInner() {
     return () => clearInterval(id)
   }, [apiActive, applyRemote, currentDataKey])
 
-  return null
+  return (
+    <RemoteSyncActionsProvider value={saveContextValue}>{children}</RemoteSyncActionsProvider>
+  )
 }

@@ -7,11 +7,23 @@ type VercelRequest = any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type VercelResponse = any
 
+function getUpstashRestConfig(): { url: string; token: string } | null {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL ||
+    process.env.KV_REST_API_URL ||
+    process.env.UPSTASH_REDIS_REST_KV_REST_API_URL
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ||
+    process.env.KV_REST_API_TOKEN ||
+    process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN
+  if (!url || !token) return null
+  return { url, token }
+}
+
 function getRedis(): Redis | null {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return null
-  }
-  return Redis.fromEnv()
+  const cfg = getUpstashRestConfig()
+  if (!cfg) return null
+  return new Redis(cfg)
 }
 
 function parseJsonBody(req: VercelRequest): unknown {
@@ -44,7 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   if (!redis) {
     return res.status(501).json({
       error: 'Redis not configured',
-      hint: 'Add an Upstash Redis integration (Vercel → Storage) and redeploy so UPSTASH_REDIS_* env vars are set.',
+      hint:
+        'Add an Upstash Redis store (Vercel → Storage) and redeploy. Vercel may set UPSTASH_REDIS_REST_KV_REST_API_URL / _TOKEN, KV_*, or UPSTASH_REDIS_REST_URL / _TOKEN — this build accepts any of those.',
     })
   }
 

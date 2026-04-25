@@ -7,6 +7,8 @@ import { useMapTargets } from '../hooks/useMapTargetsContext'
 import { useDefaultMaxGuesses } from '../hooks/useDefaultMaxGuesses'
 import { useTolerancePx } from '../hooks/useToleranceSync'
 import { getDefaultMaxGuesses } from '../lib/gameState'
+import { useSyncApi } from '../context/SyncApiContext'
+import { useRemoteSyncActions } from '../context/RemoteSyncActionsContext'
 
 const AUTH_USER = 'admin'
 const AUTH_PASS = 'password123'
@@ -32,6 +34,10 @@ export function AdminPage() {
   /** Which waypoint (0–3) is shown on the map for click-to-place and the accuracy ring */
   const [waypointToSet, setWaypointToSet] = useState<0 | 1 | 2 | 3>(0)
   const [showAllWaypoints, setShowAllWaypoints] = useState(false)
+  const { apiActive } = useSyncApi()
+  const { saveToRemote } = useRemoteSyncActions()
+  const [saving, setSaving] = useState(false)
+  const [saveHint, setSaveHint] = useState<string | null>(null)
 
   const onLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -124,26 +130,57 @@ export function AdminPage() {
   return (
     <div className="w-full px-3 py-8">
       <div className="mx-auto max-w-4xl space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-700/50 pb-4">
-          <div>
-            <h1 className="font-mono text-xl text-stone-100">Organizer console</h1>
-            <p className="text-sm text-stone-500">Tolerance, default attempt budget, and trial boosts for live play.</p>
+        <header className="space-y-4 border-b border-slate-700/50 pb-4">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="font-mono text-xl text-stone-100">Organizer console</h1>
+              <p className="text-sm text-stone-500">Tolerance, default attempt budget, and trial boosts for live play.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {apiActive ? (
+                <span className="text-xs text-teal-500/90">Live sync: on (players get updates in a few seconds)</span>
+              ) : (
+                <span className="max-w-md text-xs text-amber-400/95">
+                  Live sync: off — in Vercel, add an Upstash Redis store (or set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN), then redeploy. Without that, this browser and players never share data.
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={!apiActive || saving}
+                className="rounded-lg bg-teal-800/80 px-4 py-2 text-sm font-mono text-stone-100 hover:bg-teal-700/90 disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={async () => {
+                  if (!apiActive) return
+                  setSaving(true)
+                  setSaveHint(null)
+                  const r = await saveToRemote()
+                  setSaving(false)
+                  if (r.ok) {
+                    setSaveHint('Saved — other devices will pick this up on their next sync.')
+                  } else if (r.error === 'no_api') {
+                    setSaveHint('Sync is not available (no Redis on the server).')
+                  } else {
+                    setSaveHint('Could not save. Check the network and try again.')
+                  }
+                }}
+              >
+                {saving ? 'Saving…' : 'Save to players'}
+              </button>
+              <Link to="/" className="text-sm text-teal-400/85 hover:text-teal-300 hover:underline">
+                Home
+              </Link>
+              <button
+                type="button"
+                className="text-sm text-stone-500 hover:text-stone-300"
+                onClick={() => {
+                  sessionStorage.removeItem(SESS)
+                  setAuthed(false)
+                }}
+              >
+                Log out
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Link to="/" className="text-sm text-teal-400/85 hover:text-teal-300 hover:underline">
-              Home
-            </Link>
-            <button
-              type="button"
-              className="text-sm text-stone-500 hover:text-stone-300"
-              onClick={() => {
-                sessionStorage.removeItem(SESS)
-                setAuthed(false)
-              }}
-            >
-              Log out
-            </button>
-          </div>
+          {saveHint != null && <p className="text-sm text-stone-400">{saveHint}</p>}
         </header>
 
         <section className="grid gap-6 md:grid-cols-2">

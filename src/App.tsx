@@ -14,8 +14,8 @@ export default function App() {
     <AppBootstrap>
       <GameStateProvider>
         <MapTargetsProvider>
-          <RemoteSync>
-            <BrowserRouter>
+          <BrowserRouter>
+            <RemoteSync>
               <div className={appShellClass}>
                 <Routes>
                   <Route path="/" element={<TeamGamePage />} />
@@ -23,8 +23,8 @@ export default function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>
-            </BrowserRouter>
-          </RemoteSync>
+            </RemoteSync>
+          </BrowserRouter>
         </MapTargetsProvider>
       </GameStateProvider>
     </AppBootstrap>
