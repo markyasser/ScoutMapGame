@@ -10,3 +10,13 @@ export function snapshotDataKey(
     defaultMaxGuesses: s.defaultMaxGuesses,
   })
 }
+
+export function snapshotConfigKey(
+  s: Pick<AppSnapshotV1, 'targets' | 'tolerancePx' | 'defaultMaxGuesses'>
+): string {
+  return JSON.stringify({
+    targets: s.targets,
+    tolerancePx: s.tolerancePx,
+    defaultMaxGuesses: s.defaultMaxGuesses,
+  })
+}

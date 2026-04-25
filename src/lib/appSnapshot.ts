@@ -57,6 +57,17 @@ export function applySnapshotToReact(
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
 }
 
+/** Map, tolerance, and defaults from organizer — does not touch game (team progress). */
+export function applyRemoteConfigToReact(
+  s: AppSnapshotV1,
+  onTargets: (t: TeamTargets) => void
+): void {
+  saveMapTargets(s.targets)
+  onTargets(s.targets)
+  readToleranceAndBroadcast(s.tolerancePx)
+  readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
+}
+
 export function pickNewer(a: AppSnapshotV1, b: AppSnapshotV1): AppSnapshotV1 {
   return a.updatedAt >= b.updatedAt ? a : b
 }

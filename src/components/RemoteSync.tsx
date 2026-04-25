@@ -8,13 +8,14 @@ import { useSyncApi } from '../context/SyncApiContext'
 import { RemoteSyncActionsProvider } from '../context/RemoteSyncActionsContext'
 import {
   type AppSnapshotV1,
+  applyRemoteConfigToReact,
   applySnapshotToReact,
   isAppSnapshotV1,
 } from '../lib/appSnapshot'
-import { snapshotDataKey } from '../lib/snapshotDataKey'
+import { snapshotConfigKey, snapshotDataKey } from '../lib/snapshotDataKey'
 
-const POLL_MS = 2500
-const PUSH_DEBOUNCE_MS = 400
+const POLL_MS = 2000
+const PUSH_DEBOUNCE_MS = 150
 
 type RemoteSyncProps = { children: ReactNode }
 
@@ -51,9 +52,23 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     lastRemoteAt.current = initialRemoteAt
   }, [initialRemoteAt])
 
+  // Treat initial client state as “synced to nothing pending” so poll logic is not always “dirty”
+  useEffect(() => {
+    lastPushedDataKey.current = currentDataKey()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time after mount; refs are current
+  }, [])
+
   const currentDataKey = useCallback(() => {
     return snapshotDataKey({
       game: stateRef.current,
+      targets: targetsRef.current,
+      tolerancePx: toleranceRef.current,
+      defaultMaxGuesses: defaultRef.current,
+    })
+  }, [])
+
+  const snapshotConfigKeyFromRefs = useCallback(() => {
+    return snapshotConfigKey({
       targets: targetsRef.current,
       tolerancePx: toleranceRef.current,
       defaultMaxGuesses: defaultRef.current,
@@ -84,6 +99,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     })
     if (r.ok) {
       lastPushedDataKey.current = key
+      lastRemoteAt.current = Math.max(lastRemoteAt.current, snap.updatedAt)
     }
     return r.ok
   }, [])
@@ -160,13 +176,23 @@ export function RemoteSync({ children }: RemoteSyncProps) {
           const j: unknown = await r.json()
           if (j == null) return
           if (!isAppSnapshotV1(j)) return
-          if (j.updatedAt <= lastRemoteAt.current) return
+          if (j.updatedAt < lastRemoteAt.current) return
           const localKey = currentDataKey()
           const incomingKey = snapshotDataKey(j)
           if (incomingKey === localKey) {
             lastRemoteAt.current = j.updatedAt
             return
           }
+
+          const playerHasUnpushedToServer =
+            !isAdminRoute && currentDataKey() !== lastPushedDataKey.current
+          if (playerHasUnpushedToServer) {
+            if (snapshotConfigKey(j) !== snapshotConfigKeyFromRefs()) {
+              applyRemoteConfigToReact(j, replaceAllTargets)
+            }
+            return
+          }
+
           applyRemote(j)
         } catch {
           /* ignore */
@@ -176,7 +202,14 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     void tick()
     const id = setInterval(tick, POLL_MS)
     return () => clearInterval(id)
-  }, [apiActive, applyRemote, currentDataKey])
+  }, [
+    apiActive,
+    applyRemote,
+    currentDataKey,
+    isAdminRoute,
+    replaceAllTargets,
+    snapshotConfigKeyFromRefs,
+  ])
 
   return (
     <RemoteSyncActionsProvider value={saveContextValue}>{children}</RemoteSyncActionsProvider>

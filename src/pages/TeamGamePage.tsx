@@ -7,6 +7,7 @@ import { ScoutMap } from '../components/ScoutMap'
 import { useTolerancePx } from '../hooks/useToleranceSync'
 import { guessProgressLabels } from '../lib/gameState'
 import type { TeamGameState } from '../lib/gameState'
+import { useRemoteSyncActions } from '../context/RemoteSyncActionsContext'
 
 function TeamSelect() {
   return (
@@ -62,6 +63,7 @@ export function TeamGamePage() {
   const { state, updateTeam } = useGame()
   const { targets } = useMapTargets()
   const { tolerancePx } = useTolerancePx()
+  const { saveToRemote } = useRemoteSyncActions()
   const [showCongrats, setShowCongrats] = useState(false)
   const [waypointFound, setWaypointFound] = useState(1 as 1 | 2 | 3 | 4)
 
@@ -121,6 +123,9 @@ export function TeamGamePage() {
       })
       setWaypointFound(foundN)
       setShowCongrats(true)
+      setTimeout(() => {
+        void saveToRemote()
+      }, 0)
       return
     }
     updateTeam(teamId, (t) => {
