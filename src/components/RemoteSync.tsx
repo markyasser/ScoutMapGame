@@ -207,9 +207,12 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     }
   }, [apiActive, isAdminRoute, state, targets, tolerancePx, defaultMaxGuesses, playerPollIntervalMs, livePollEnabled, teamLabels, pushIfNeeded])
 
-  // Background poll: off by default; interval only when livePollEnabled (refs keep effect deps small)
+  // Background poll: off by default; interval only when livePollEnabled (refs keep effect deps small).
+  // Do not poll on /admin — a timed GET can return a snapshot that still matches updatedAt in edge cases
+  // or differ only in config key logic, and applyRemoteConfigToReact would replace local waypoints
+  // with older server targets while the organizer is still editing (same reason auto-push is off on admin).
   useEffect(() => {
-    if (!apiActive || !livePollEnabled) return
+    if (!apiActive || !livePollEnabled || isAdminRoute) return
     const tick = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         return
@@ -260,7 +263,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       clearInterval(id)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [apiActive, livePollEnabled, playerPollIntervalMs])
+  }, [apiActive, livePollEnabled, playerPollIntervalMs, isAdminRoute])
 
   return (
     <RemoteSyncActionsProvider value={saveContextValue}>{children}</RemoteSyncActionsProvider>
