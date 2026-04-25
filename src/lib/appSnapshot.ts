@@ -14,6 +14,13 @@ import {
 } from './gameState'
 import { readDefaultMaxGuessesAndBroadcast } from '../hooks/useDefaultMaxGuesses'
 import { readToleranceAndBroadcast } from '../hooks/useToleranceSync'
+import {
+  applyTeamLabelsFromSnapshot,
+  getDefaultTeamLabels,
+  getTeamLabels,
+  isValidTeamLabelsInSnapshot,
+  type TeamLabels,
+} from './teamLabelsStorage'
 import { getLivePollEnabled, setLivePollEnabled } from './livePollEnabled'
 import {
   DEFAULT_PLAYER_POLL_MS,
@@ -40,6 +47,8 @@ export type AppSnapshotV1 = {
    * initial load and full page refresh fetch — no background GET loop.
    */
   livePollEnabled?: boolean
+  /** Display names for team1…team4 — synced with organizer. */
+  teamLabels?: TeamLabels
   /**
    * Set when the organizer uses “Save to players”. All clients must apply the full
    * snapshot, ignoring uncommitted local / unpushed state on player devices.
@@ -57,6 +66,7 @@ export function buildLocalSnapshot(): AppSnapshotV1 {
     defaultMaxGuesses: getDefaultMaxGuesses(),
     playerPollIntervalMs: getPlayerPollIntervalMs(),
     livePollEnabled: getLivePollEnabled(),
+    teamLabels: getTeamLabels(),
   }
 }
 
@@ -74,6 +84,7 @@ export function buildDefaultSnapshot(): AppSnapshotV1 {
     defaultMaxGuesses: DEFAULT_MAX_GUESSES,
     playerPollIntervalMs: DEFAULT_PLAYER_POLL_MS,
     livePollEnabled: false,
+    teamLabels: getDefaultTeamLabels(),
   }
 }
 
@@ -83,6 +94,7 @@ export function applySnapshotToLocalStorage(s: AppSnapshotV1): void {
   setDefaultMaxGuesses(s.defaultMaxGuesses)
   setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
   setLivePollEnabled(s.livePollEnabled === true)
+  applyTeamLabelsFromSnapshot(s.teamLabels)
   saveGameState(s.game)
   saveMapTargets(s.targets)
 }
@@ -101,6 +113,7 @@ export function applySnapshotToReact(
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
   setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
   setLivePollEnabled(s.livePollEnabled === true)
+  applyTeamLabelsFromSnapshot(s.teamLabels)
 }
 
 /** Map, tolerance, and defaults from organizer — does not touch game (team progress). */
@@ -114,6 +127,7 @@ export function applyRemoteConfigToReact(
   readDefaultMaxGuessesAndBroadcast(s.defaultMaxGuesses)
   setPlayerPollIntervalMs(s.playerPollIntervalMs ?? DEFAULT_PLAYER_POLL_MS)
   setLivePollEnabled(s.livePollEnabled === true)
+  applyTeamLabelsFromSnapshot(s.teamLabels)
 }
 
 export function isAppSnapshotV1(x: unknown): x is AppSnapshotV1 {
@@ -129,5 +143,6 @@ export function isAppSnapshotV1(x: unknown): x is AppSnapshotV1 {
     if (o.playerPollIntervalMs < MIN_MS || o.playerPollIntervalMs > MAX_MS) return false
   }
   if (o.livePollEnabled !== undefined && typeof o.livePollEnabled !== 'boolean') return false
+  if (o.teamLabels !== undefined && !isValidTeamLabelsInSnapshot(o.teamLabels)) return false
   return true
 }

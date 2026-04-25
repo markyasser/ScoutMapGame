@@ -1,4 +1,5 @@
 import type { AppSnapshotV1 } from './appSnapshot'
+import { getDefaultTeamLabels, type TeamLabels } from './teamLabelsStorage'
 import { DEFAULT_PLAYER_POLL_MS } from './playerPollInterval'
 
 function pollKey(s: { playerPollIntervalMs?: number }): number {
@@ -9,10 +10,20 @@ function liveKey(s: { livePollEnabled?: boolean }): boolean {
   return s.livePollEnabled === true
 }
 
+function labelsKey(s: { teamLabels?: TeamLabels }): string {
+  return JSON.stringify({ ...getDefaultTeamLabels(), ...s.teamLabels })
+}
+
 export function snapshotDataKey(
   s: Pick<
     AppSnapshotV1,
-    'game' | 'targets' | 'tolerancePx' | 'defaultMaxGuesses' | 'playerPollIntervalMs' | 'livePollEnabled'
+    | 'game'
+    | 'targets'
+    | 'tolerancePx'
+    | 'defaultMaxGuesses'
+    | 'playerPollIntervalMs'
+    | 'livePollEnabled'
+    | 'teamLabels'
   >
 ): string {
   return JSON.stringify({
@@ -22,11 +33,15 @@ export function snapshotDataKey(
     defaultMaxGuesses: s.defaultMaxGuesses,
     playerPollIntervalMs: pollKey(s),
     livePollEnabled: liveKey(s),
+    teamLabels: labelsKey(s),
   })
 }
 
 export function snapshotConfigKey(
-  s: Pick<AppSnapshotV1, 'targets' | 'tolerancePx' | 'defaultMaxGuesses' | 'playerPollIntervalMs' | 'livePollEnabled'>
+  s: Pick<
+    AppSnapshotV1,
+    'targets' | 'tolerancePx' | 'defaultMaxGuesses' | 'playerPollIntervalMs' | 'livePollEnabled' | 'teamLabels'
+  >
 ): string {
   return JSON.stringify({
     targets: s.targets,
@@ -34,5 +49,6 @@ export function snapshotConfigKey(
     defaultMaxGuesses: s.defaultMaxGuesses,
     playerPollIntervalMs: pollKey(s),
     livePollEnabled: liveKey(s),
+    teamLabels: labelsKey(s),
   })
 }

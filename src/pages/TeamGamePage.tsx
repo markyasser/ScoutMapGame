@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { TEAM_LABELS, isTeamId } from '../config/mapConfig'
+import { isTeamId } from '../config/mapConfig'
+import { useTeamLabels } from '../hooks/useTeamLabels'
 import { useMapTargets } from '../hooks/useMapTargetsContext'
 import { useGame } from '../hooks/useGameContext'
 import { ScoutMap } from '../components/ScoutMap'
@@ -10,6 +11,7 @@ import type { TeamGameState } from '../lib/gameState'
 import { useRemoteSyncActions } from '../context/RemoteSyncActionsContext'
 
 function TeamSelect() {
+  const { teamLabels } = useTeamLabels()
   return (
     <div className="w-full">
       <div className="mx-auto max-w-md px-5 pb-16 pt-16 sm:px-8 sm:pt-20">
@@ -35,7 +37,7 @@ function TeamSelect() {
                 className="group flex items-center justify-between gap-3 rounded-xl border border-slate-600/35 bg-slate-900/40 px-5 py-4 font-medium text-stone-100 transition hover:border-teal-800/40 hover:bg-slate-900/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500/40 sm:py-4"
                 href={`/?team=${t}`}
               >
-                <span className="text-lg text-stone-100">{TEAM_LABELS[t]}</span>
+                <span className="text-lg text-stone-100">{teamLabels[t]}</span>
                 <span className="rounded-md border border-slate-700/50 bg-slate-950/50 px-2.5 py-1 font-mono text-xs text-stone-500 group-hover:text-stone-400">
                   {t}
                 </span>
@@ -60,6 +62,7 @@ function TeamSelect() {
 export function TeamGamePage() {
   const [params] = useSearchParams()
   const team = params.get('team')
+  const { teamLabels } = useTeamLabels()
   const { state, updateTeam } = useGame()
   const { targets } = useMapTargets()
   const { tolerancePx } = useTolerancePx()
@@ -142,7 +145,7 @@ export function TeamGamePage() {
 
   if (!teamId) return <TeamSelect />
 
-  const name = TEAM_LABELS[teamId]
+  const name = teamLabels[teamId]
   return (
     <div className="w-full">
       <div className="mx-auto max-w-4xl px-3 pb-8 pt-6">

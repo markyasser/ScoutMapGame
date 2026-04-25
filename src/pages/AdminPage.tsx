@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { TEAMS, TEAM_LABELS, type TeamId } from '../config/mapConfig'
+import { TEAMS, type TeamId } from '../config/mapConfig'
+import { useTeamLabels } from '../hooks/useTeamLabels'
 import { ScoutMap } from '../components/ScoutMap'
 import { useGame } from '../hooks/useGameContext'
 import { useMapTargets } from '../hooks/useMapTargetsContext'
@@ -42,6 +43,7 @@ export function AdminPage() {
   const [showAllWaypoints, setShowAllWaypoints] = useState(false)
   const { apiActive } = useSyncApi()
   const { saveToRemote } = useRemoteSyncActions()
+  const { teamLabels, setTeamLabel } = useTeamLabels()
   const [saving, setSaving] = useState(false)
   const [saveHint, setSaveHint] = useState<string | null>(null)
 
@@ -70,7 +72,7 @@ export function AdminPage() {
     if (gs.currentPointIndex >= 4) return
     if (
       !window.confirm(
-        `Clear trials for ${TEAM_LABELS[adminTeam]} on point ${i + 1}/4? This resets guesses to the default (${getDefaultMaxGuesses()}), clears used attempts, and removes map markers for this point.`
+        `Clear trials for ${teamLabels[adminTeam]} on point ${i + 1}/4? This resets guesses to the default (${getDefaultMaxGuesses()}), clears used attempts, and removes map markers for this point.`
       )
     ) {
       return
@@ -201,6 +203,31 @@ export function AdminPage() {
           {saveHint != null && <p className="text-sm text-stone-400">{saveHint}</p>}
         </header>
 
+        <section className="space-y-3 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
+          <h2 className="font-mono text-sm text-stone-300">Team names</h2>
+          <p className="text-xs text-stone-500">
+            Shown on the home team picker and in the header while playing. Use{' '}
+            <span className="text-stone-400">Save to players</span> to sync.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {TEAMS.map((t) => (
+              <div key={t} className="flex flex-col gap-1.5">
+                <label className="text-xs font-mono text-stone-500" htmlFor={`admin-team-name-${t}`}>
+                  {t}
+                </label>
+                <input
+                  id={`admin-team-name-${t}`}
+                  type="text"
+                  maxLength={80}
+                  className="rounded border border-slate-600/50 bg-slate-950/80 px-3 py-2 text-stone-100"
+                  value={teamLabels[t]}
+                  onChange={(e) => setTeamLabel(t, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4 rounded-xl border border-slate-600/35 bg-slate-900/40 p-4">
             <label className="block text-sm font-medium text-stone-200">
@@ -301,11 +328,14 @@ export function AdminPage() {
                 setWaypointToSet(0)
               }}
             >
-              {TEAMS.map((t) => (
-                <option key={t} value={t}>
-                  {TEAM_LABELS[t]} — point {curIdx >= 4 ? 'done' : curIdx + 1}/4
-                </option>
-              ))}
+              {TEAMS.map((t) => {
+                const idx = state.teams[t].currentPointIndex
+                return (
+                  <option key={t} value={t}>
+                    {teamLabels[t]} — point {idx >= 4 ? 'done' : idx + 1}/4
+                  </option>
+                )
+              })}
             </select>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <button
@@ -363,7 +393,7 @@ export function AdminPage() {
             <div>
               <h2 className="font-mono text-sm text-stone-300">Place target waypoints on the map</h2>
               <p className="mt-1 text-xs text-stone-500">
-                Team <span className="text-stone-400">{TEAM_LABELS[adminTeam]}</span>. Pick a waypoint, then{' '}
+                Team <span className="text-stone-400">{teamLabels[adminTeam]}</span>. Pick a waypoint, then{' '}
                 <span className="text-stone-400">click the map</span> to set it. The teal ring shows the current hit radius
                 (same as the accuracy tolerance slider above).
               </p>
@@ -372,7 +402,7 @@ export function AdminPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm(`Reset waypoints for ${TEAM_LABELS[adminTeam]} to values from the app code?`)) {
+                  if (window.confirm(`Reset waypoints for ${teamLabels[adminTeam]} to values from the app code?`)) {
                     resetTeamTargetsToCodeDefaults(adminTeam)
                   }
                 }}

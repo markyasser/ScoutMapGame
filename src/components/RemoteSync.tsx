@@ -5,6 +5,7 @@ import { useMapTargets } from '../hooks/useMapTargetsContext'
 import { useDefaultMaxGuesses } from '../hooks/useDefaultMaxGuesses'
 import { useLivePollEnabled } from '../hooks/useLivePollEnabled'
 import { usePlayerPollInterval } from '../hooks/usePlayerPollInterval'
+import { useTeamLabels } from '../hooks/useTeamLabels'
 import { useTolerancePx } from '../hooks/useToleranceSync'
 import { useSyncApi } from '../context/SyncApiContext'
 import { RemoteSyncActionsProvider } from '../context/RemoteSyncActionsContext'
@@ -36,6 +37,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
   const { tolerancePx } = useTolerancePx()
   const { playerPollIntervalMs } = usePlayerPollInterval()
   const { livePollEnabled } = useLivePollEnabled()
+  const { teamLabels } = useTeamLabels()
 
   const lastRemoteAt = useRef(initialRemoteAt)
   const applyingRemote = useRef(false)
@@ -48,12 +50,14 @@ export function RemoteSync({ children }: RemoteSyncProps) {
   const defaultRef = useRef(defaultMaxGuesses)
   const playerPollRef = useRef(playerPollIntervalMs)
   const livePollRef = useRef(livePollEnabled)
+  const teamLabelsRef = useRef(teamLabels)
   stateRef.current = state
   targetsRef.current = targets
   toleranceRef.current = tolerancePx
   defaultRef.current = defaultMaxGuesses
   playerPollRef.current = playerPollIntervalMs
   livePollRef.current = livePollEnabled
+  teamLabelsRef.current = teamLabels
 
   useEffect(() => {
     lastRemoteAt.current = initialRemoteAt
@@ -73,6 +77,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       defaultMaxGuesses: defaultRef.current,
       playerPollIntervalMs: playerPollRef.current,
       livePollEnabled: livePollRef.current,
+      teamLabels: teamLabelsRef.current,
     })
   }, [])
 
@@ -83,6 +88,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       defaultMaxGuesses: defaultRef.current,
       playerPollIntervalMs: playerPollRef.current,
       livePollEnabled: livePollRef.current,
+      teamLabels: teamLabelsRef.current,
     })
   }, [])
 
@@ -133,6 +139,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
       defaultMaxGuesses: defaultRef.current,
       playerPollIntervalMs: playerPollRef.current,
       livePollEnabled: livePollRef.current,
+      teamLabels: teamLabelsRef.current,
     }
     try {
       await doPutSnapshot(snap, key)
@@ -155,6 +162,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
         defaultMaxGuesses: defaultRef.current,
         playerPollIntervalMs: playerPollRef.current,
         livePollEnabled: livePollRef.current,
+        teamLabels: teamLabelsRef.current,
       }
       if (options?.adminOverride) {
         snap.adminOverride = true
@@ -188,7 +196,7 @@ export function RemoteSync({ children }: RemoteSyncProps) {
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current)
     }
-  }, [apiActive, isAdminRoute, state, targets, tolerancePx, defaultMaxGuesses, playerPollIntervalMs, livePollEnabled, pushIfNeeded])
+  }, [apiActive, isAdminRoute, state, targets, tolerancePx, defaultMaxGuesses, playerPollIntervalMs, livePollEnabled, teamLabels, pushIfNeeded])
 
   // Background poll: off by default; interval only when livePollEnabled (refs keep effect deps small)
   useEffect(() => {

@@ -7,10 +7,10 @@ export const TEAMS = ['team1', 'team2', 'team3', 'team4'] as const
 export type TeamId = (typeof TEAMS)[number]
 
 export const TEAM_LABELS: Record<TeamId, string> = {
-  team1: 'Alpha',
-  team2: 'Bravo',
-  team3: 'Charlie',
-  team4: 'Delta',
+  team1: 'Dab3',
+  team2: 'Asad',
+  team3: 'Fahd',
+  team4: 'Nemr',
 }
 
 export type MapPoint = { x: number; y: number }
